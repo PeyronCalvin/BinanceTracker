@@ -1,16 +1,44 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<div class="container" style="max-width: 100vw; overflow: hidden;">
+    <PageTitle>BINANCE PORTFOLIO TRACKER</PageTitle>
 
-<h1>Binance Dashboard</h1>
+    <h1>Binance Dashboard</h1>
 
-<p>@value</p>
+    <table>
+        <tr>
+            <td><button id="btnSpot" @onclick="GetHistoricalSpotOrders">Spot</button></td>
+            <td><button id="btnEarn" @onclick="GetSimpleEarnFlexibleAccountInfo">Earn</button></td>
+            <td><button id="btnTrades" @onclick="GetTrades">Trades</button></td>
+            <td><button id="btnDepositHistory" @onclick="GetDepositHistory">Deposit History</button></td>
+        </tr>
+    </table>
+
+    @if (value != "")
+    {
+        <p>@value</p>
+    }
+
+    @if (base64Image != "")
+    {
+        <img src="data:image/png;base64,@ExtractBase64FromImageTag(base64Image)" />
+    }
+</div>
 
 @using Binance.Spot;
 @using System.Security.Cryptography;
 @using System.Text;
+@using ScottPlot;
+@using BinanceApp.Models;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Text.RegularExpressions;
+@using System.Globalization;
+
 @code {
-    string value = "Value not found";
+    string base64Image = "";
+    string value = "";
     string serverTime ="";
     string recvWindow = "60000"; 
     RSA rsaPrivateKey = CreateRsaKey(@"Keys/privateKey.pem");
@@ -18,12 +46,19 @@
     string apiKey = File.ReadAllText(@"Keys/apiKey");
     string requestUrl ="";
     long timestamp;
+    string interval = "1h";
+    string symbol = "BTCEUR";
 
     protected override async Task OnInitializedAsync()
     {
         Market market = new Market();
         serverTime = await market.CheckServerTime();
-        await GetSimpleEarnFlexibleAccountInfo();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+
+        DateTime now = DateTime.Now;
+        DateTime result = now.AddDays(-200);
+        string startTime = new DateTimeOffset(result).ToUnixTimeSeconds().ToString();
     }
 
     public static string Sign(RSA rsaPrivateKey, string payload)
@@ -94,13 +129,20 @@
         }
     }
 
-    private string generateUrl(string baseUrl, Dictionary<string, string> parameters)
+    private string generateUrl(string baseUrl, Dictionary<string, string> parameters, bool signatureMandatory)
     {
         var queryString = string.Join("&", parameters.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-        baseUrl = "https://api.binance.com/sapi/v1/simple-earn/flexible/position?" + queryString;
-        string signature = Sign(rsaPrivateKey, queryString);
-        string finalUrl = baseUrl + "&signature=" + signature;
-        return finalUrl;
+        baseUrl += queryString;
+        if (signatureMandatory)
+        {
+            string signature = Sign(rsaPrivateKey, queryString);
+            string finalUrl = baseUrl + "&signature=" + signature;
+            return finalUrl;
+        }
+        else
+        {
+            return baseUrl;
+        }
     }
 
     public async Task sendHttpRequest(HttpClient httpClient)
@@ -127,6 +169,32 @@
         }
     }
 
+    public string ExtractBase64FromImageTag(string imgTag)
+    {
+        if (base64Image != "")
+        {
+
+            const string base64Prefix = "data:image/png;base64,";
+            int startIndex = imgTag.IndexOf(base64Prefix);
+
+            if (startIndex == -1)
+                throw new ArgumentException("The provided string does not contain a Base64 image.");
+
+            startIndex += base64Prefix.Length;
+            int endIndex = imgTag.IndexOf("\"", startIndex);
+
+            if (endIndex == -1)
+                throw new ArgumentException("Invalid image tag format.");
+
+            string base64Data = imgTag.Substring(startIndex, endIndex - startIndex);
+            return base64Data;
+        }
+        else
+        {
+            return "";
+        }
+    }
+
 
     public async Task GetSimpleEarnFlexibleAccountInfo()
     {
@@ -139,8 +207,224 @@
             { "recvWindow", recvWindow},
         };
 
-        requestUrl = generateUrl("https://api.binance.com/sapi/v1/simple-earn/flexible/position?", parameters);
+        requestUrl = generateUrl("https://api.binance.com/sapi/v1/simple-earn/flexible/position?", parameters, true);
 
         await sendHttpRequest(httpClient);
+    }
+
+
+    public async Task GetSimpleEarnLockedAccountInfo()
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "type", "SPOT" },
+            { "timestamp", timestamp.ToString() },
+            { "recvWindow", recvWindow},
+        };
+
+        requestUrl = generateUrl("https://api.binance.com/sapi/v1/simple-earn/locked/position?", parameters, true);
+
+        await sendHttpRequest(httpClient);
+    }
+
+    public async Task GetHistoricalSpotOrders()
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "timestamp", timestamp.ToString() },
+            { "recvWindow", recvWindow},
+        };
+
+        requestUrl = generateUrl("https://api.binance.com/sapi/v1/algo/spot/historicalOrders?", parameters, true);
+
+        await sendHttpRequest(httpClient);
+
+    }
+
+    public string CreateKlineCandles(List<Kline> klineData)
+    {
+        var plt = new ScottPlot.Plot();
+
+        DateTime[] dates = new DateTime[klineData.Count];
+        double[] opens = new double[klineData.Count];
+        double[] highs = new double[klineData.Count];
+        double[] lows = new double[klineData.Count];
+        double[] closes = new double[klineData.Count];
+
+        for (int i = 0; i < klineData.Count; i++)
+        {
+            dates[i] = klineData[i].OpenTime;
+            opens[i] = klineData[i].Open;
+            highs[i] = klineData[i].High;
+            lows[i] = klineData[i].Low;
+            closes[i] = klineData[i].Close;
+        }
+        List<OHLC> ohlcData = new List<OHLC>();
+        for (int i = 0; i < dates.Length; i++)
+        {
+            var ohlc = new OHLC(opens[i], closes[i], lows[i], highs[i], dates[i], TimeSpan.FromDays(0.01));
+            ohlcData.Add(ohlc);
+        }
+        var candlestickPlot = plt.Add.Candlestick(ohlcData);
+
+        plt.Title("Binance Candlestick Chart");
+        plt.YLabel("Price (EUR)");
+        plt.XLabel("Date");
+        plt.Axes.DateTimeTicksBottom();
+
+
+        return plt.GetPngHtml(800, 600);
+
+    }
+
+    public async Task RetrieveKlineCandles(string symbol, string startTime, string endTime, string interval)
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "startTime", startTime},
+            { "endTime", endTime},
+            { "symbol", symbol},
+            { "interval", interval},
+
+        };
+
+        requestUrl = generateUrl("https://api.binance.com/api/v3/klines?", parameters, false);
+
+        await sendHttpRequest(httpClient);
+
+        var klines = JsonConvert.DeserializeObject<List<List<object>>>(value);
+
+        List<Kline> klineData = new List<Kline>();
+
+        foreach (var item in klines)
+        {
+            var kline = new Kline
+                {
+                    OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(System.Convert.ToInt64(item[0])).UtcDateTime,
+                    Open = System.Convert.ToDouble(item[1], System.Globalization.CultureInfo.InvariantCulture),
+                    High = System.Convert.ToDouble(item[2], System.Globalization.CultureInfo.InvariantCulture),
+                    Low = System.Convert.ToDouble(item[3], System.Globalization.CultureInfo.InvariantCulture),
+                    Close = System.Convert.ToDouble(item[4], System.Globalization.CultureInfo.InvariantCulture),
+                    Volume = System.Convert.ToDouble(item[5], System.Globalization.CultureInfo.InvariantCulture),
+                    CloseTime = DateTimeOffset.FromUnixTimeMilliseconds(System.Convert.ToInt64(item[6])).UtcDateTime
+                };
+            klineData.Add(kline);
+        }
+        base64Image = CreateKlineCandles(klineData);
+
+    }
+
+    public async Task GetTrades()
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "symbol", symbol},
+            { "timestamp", timestamp.ToString()},
+
+        };
+
+        requestUrl = generateUrl("https://api.binance.com/api/v3/myTrades?", parameters, true);
+        await sendHttpRequest(httpClient);
+        StateHasChanged();
+    }
+
+    public async Task GetAccountInfo()
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "recvWindow", recvWindow},
+            { "timestamp", timestamp.ToString()},
+
+        };
+
+        requestUrl = generateUrl("https://api.binance.com/api/v3/account?", parameters, true);
+        await sendHttpRequest(httpClient);
+        JObject jsonObject = JObject.Parse(value);
+        var balances = jsonObject["balances"];
+        var filteredBalances = balances
+            .Where(balance => (balance["free"].ToString() != "0.00000000" && balance["free"].ToString() != "0.00" && balance["free"].ToString() != "0.0") ||
+                              (balance["locked"].ToString() != "0.00000000" && balance["locked"].ToString() != "0.00" && balance["locked"].ToString() != "0.0"))
+            .Select(balance => new
+            {
+                Asset = balance["asset"].ToString(),
+                Free = balance["free"].ToString(),
+                Locked = balance["locked"].ToString()
+            })
+            .ToList();
+        value = String.Join(Environment.NewLine, filteredBalances.Select(b => $"Asset: {b.Asset}, Free: {b.Free}, Locked: {b.Locked}"));
+    }
+
+    public async Task GetDepositHistory()
+    {
+        HttpClient httpClient = new HttpClient();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Dictionary<string, string> parameters = new Dictionary<string, string>
+        {
+            { "recvWindow", recvWindow},
+            { "timestamp", timestamp.ToString()},
+
+        };
+        requestUrl = generateUrl("https://api.binance.com/sapi/v1/localentity/deposit/history?", parameters, true);
+        await sendHttpRequest(httpClient);
+    }
+
+    public async Task GetAggregatedEarnAccountInfo()
+    {
+        Dictionary<string, decimal> cryptoCurrencies = new Dictionary<string, decimal>();
+        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        await GetSimpleEarnFlexibleAccountInfo();
+        string simpleEarnFlexibleAccountInfo = value;
+        await GetSimpleEarnLockedAccountInfo();
+        string simpleEarnLockedAccountInfo = value;
+        value += simpleEarnFlexibleAccountInfo;
+        var regex = new Regex(@"\{""total"":\d+,""rows"":\[(.*?)\]\}");
+        var matches = regex.Matches(value);
+        foreach (Match match in matches)
+        {
+            try
+            {
+                JObject jsonData = JObject.Parse(match.Value);
+                var rows = jsonData["rows"] as JArray;
+                if (rows != null)
+                {
+                    foreach (var row in rows)
+                    {
+                        string asset = row["asset"]?.ToString();
+                        string amountStr = row["amount"]?.ToString() ?? row["totalAmount"]?.ToString();
+
+                        if (asset != null && amountStr != null)
+                        {
+                            amountStr = amountStr.Trim();
+                            if (decimal.TryParse(amountStr, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal amount))
+                            {
+                                if (cryptoCurrencies.ContainsKey(asset))
+                                {
+                                    cryptoCurrencies[asset] += amount;
+                                }
+                                else
+                                {
+                                    cryptoCurrencies[asset] = amount;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (JsonReaderException)
+            {
+                continue;
+            }
+        }
+        value = JsonConvert.SerializeObject(cryptoCurrencies, Formatting.Indented);
     }
 }

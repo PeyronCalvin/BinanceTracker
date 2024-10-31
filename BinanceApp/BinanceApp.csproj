@@ -8,10 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Binance.Spot" Version="4.1.0" />
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
-    <PackageReference Include="Chaos.NaCl.Standard" Version="1.0.0" />
-    <PackageReference Include="NSec.Cryptography" Version="24.4.0" />
-    <PackageReference Include="Sodium.Core" Version="1.3.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="ScottPlot" Version="5.0.40" />
   </ItemGroup>
 
 </Project>

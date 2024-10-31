@@ -8,12 +8,13 @@
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="BinanceApp.styles.css" />
+    <link rel="stylesheet" href="~/Content/styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
 </head>
 
 <body>
-    <Routes />
+    <Routes @rendermode=RenderMode.InteractiveServer/>
     <script src="_framework/blazor.web.js"></script>
 </body>
 
