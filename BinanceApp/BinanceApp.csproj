@@ -9,7 +9,11 @@
   <ItemGroup>
     <PackageReference Include="Binance.Spot" Version="4.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="ScottPlot" Version="5.0.40" />
+    <PackageReference Include="ScottPlot" Version="5.0.43" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="NewFolder\" />
   </ItemGroup>
 
 </Project>
