@@ -1,74 +1,200 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 
-<div class="container" style="max-width: 100vw; overflow: hidden;">
-    <PageTitle>BINANCE PORTFOLIO TRACKER</PageTitle>
+<div class="container">
+    <header class="page-header">
+        <h1>Binance Portfolio Tracker</h1>
+    </header>
 
-    <h1>Binance Dashboard</h1>
+    <section class="dashboard">
+        <h2>Dashboard</h2>
 
-    <table>
-        <tr>
-            <td><button id="btnSpot" @onclick="GetHistoricalSpotOrders">Spot</button></td>
-            <td><button id="btnWallet" @onclick="showWalletGraph">wallet</button></td>
-            <td><button id="btnTrades" @onclick="GetTrades">Trades</button></td>
-            <td><button id="btnDepositHistory" @onclick="GetDepositHistory">Deposit History</button></td>
-        </tr>
-    </table>
+        <div class="button-group">
+            <button id="btnSpot" class="main-button" @onclick="GetHistoricalSpotOrders">Spot</button>
+            <button id="btnWallet" class="main-button" @onclick="showWalletGraph">Wallet</button>
+            <button id="btnTrades" class="main-button" @onclick="GetTrades">Trades</button>
+            <button id="btnDepositHistory" class="main-button" @onclick="GetDepositHistory">Deposit History</button>
+        </div>
+    </section>
 
     @if (earnOpened)
     {
-        
-    <table>
-        <tr>
-                <td>
-                    <button id="startTime" @onclick="() => ToggleDatePicker(true)">Start Time</button>
-                    @startTime.ToString("dd/MM/yyyy HH:mm")
-                </td>
-                <td>
-                    <button id="endTime" @onclick="() => ToggleDatePicker(false)">End Time</button>
-                    @endTime.ToString("dd/MM/yyyy HH:mm")
-                </td>
-                <td>
+        <section class="options">
+            <div class="date-options">
+                <div class="date-picker">
+                    <button @onclick="() => ToggleDatePicker(true)">Start Time</button>
+                    <span>@startTime.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+                <div class="date-picker">
+                    <button @onclick="() => ToggleDatePicker(false)">End Time</button>
+                    <span>@endTime.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+                <div class="interval-picker">
                     <button @onclick="ToggleIntervalPicker">Interval</button>
-                    @Global.interval
-                </td>
-                <td>
-                    <button id="btnEarn" @onclick="getEarnGraphAggregated">Search</button>
-                </td>
-        </tr>
-        <tr>
-            @if (showStartTimeDatePicker)
-            {
+                    <span>@Global.interval</span>
+                </div>
+                <div class="coin-picker">
+                    <button @onclick="ToggleCoinPicker">Coin</button>
+                    <span>@Global.coin</span>
+                </div>
+            </div>
+
+            <div class="input-options">
+                @if (showStartTimeDatePicker)
+                {
                     <InputDate @bind-Value="startTime" class="form-control" min="@Global.dateMinOr200DaysBeforeEnd" max="@endTime.ToString("yyyy-MM-dd")" />
-            }
-            @if (showEndTimeDatePicker)
-            {
+                }
+                @if (showEndTimeDatePicker)
+                {
                     <InputDate @bind-Value="endTime" class="form-control" min="@startTime.ToString("yyyy-MM-dd")" max="@Global.dateMaxOr200DaysAfterStart" />
-            }
-            @if (showIntervalPicker)
-            {
-                <select multiple class="form-control" id="search-multiple" name="search-multiple" value="">
+                }
+                @if (showIntervalPicker)
+                {
+                    <select multiple class="form-control" id="search-multiple" name="search-multiple" value="">
                         @foreach (var interval in Global.intervals)
-                    {
-                        <option @onclick="()=>selectInterval(interval)">@interval</option>
-                    }
-                </select>
-            }
-        </tr>
-    </table>
+                        {
+                            <option @onclick="()=>selectInterval(interval)">@interval</option>
+                        }
+                    </select>
+                }
+                @if (showCoinPicker)
+                {
+                    <select multiple class="form-control" id="search-multiple" name="search-multiple" value="">
+                        @foreach (var coin in Global.coinList)
+                        {
+                            <option @onclick="()=>selectCoin(coin)">@coin</option>
+                        }
+                    </select>
+                }
+            </div>
+
+            <div class="button-group">
+                <button id="btnEarn" class="main-button" @onclick="getEarnGraphAggregated">Wallet Amount</button>
+                <button id="btnCoinsAmount" class="main-button" @onclick="Coins">Coins Evolution</button>
+            </div>
+        </section>
     }
 
     @if (Global.value != "")
     {
-        <p>@Global.value</p>
+        <div class="value-display">
+            <p>@Global.value</p>
+        </div>
     }
 
     @if (Global.base64Image != "")
     {
-        <img src="data:image/png;base64,@Global.base64Image" />
+        <div class="image-container">
+            <img src="data:image/png;base64,@Global.base64Image" alt="Chart Image" />
+        </div>
+    }
+    <div class="warning-bar-wrapper">
+        <div class="warning-bar">
+            ⚠️ Warning: Selecting an interval that is too high or too short may produce unexpected errors.
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 90vw;
+        margin: auto;
+        font-family: Arial, sans-serif;
+        color: #333;
+        padding-bottom: 3rem;
+        position: relative;
     }
 
-</div>
+    .page-header h1 {
+        font-size: 2em;
+        color: #007bff;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .dashboard h2 {
+        color: #333;
+        font-size: 1.5em;
+        text-align: center;
+        margin:0;
+        margin-bottom: 1rem;
+    }
+
+    .button-group {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .main-button {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .main-button:hover {
+        background-color: #0056b3;
+    }
+
+    .options {
+        background: #f9f9f9;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+
+    .date-options, .input-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+        padding-bottom: 10px;
+    }
+
+    .date-picker, .interval-picker {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .container {
+        max-width: 90vw;
+        margin: auto;
+        font-family: Arial, sans-serif;
+        color: #333;
+        padding-bottom: 3rem;
+        position: relative;
+    }
+
+    .warning-bar-wrapper {
+        position: relative;
+        max-width: 90vw;
+        margin: 0 auto;
+        left: 0;
+    }
+    
+    .warning-bar {
+        position: fixed;
+        bottom: 0;
+        transform: translateX(-2.8rem);
+        width: 100%;
+        background-color: #ffc107;
+        color: #333;
+        text-align: center;
+        padding: 0.75rem;
+        font-weight: bold;
+        font-size: 1rem;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+    }
+</style>
+
 
 @using Binance.Spot;
 @using System.Security.Cryptography;
@@ -86,6 +212,7 @@
     bool showIntervalPicker = false;
     bool showStartTimeDatePicker = false;
     bool showEndTimeDatePicker = false;
+    bool showCoinPicker = false;
     DateTime startTime = DateTime.Now.AddDays(-1);
     DateTime endTime = DateTime.Now;
 
@@ -124,6 +251,7 @@
         Global.dateMinOr200DaysBeforeEnd = (DateTime.Parse(Global.dateMin) > endTime.AddDays(-200)) ? Global.dateMin : endTime.AddDays(-200).ToString("yyyy-MM-dd");
         Global.dateMaxOr200DaysAfterStart = (DateTime.Parse(Global.dateMax) < startTime.AddDays(200)) ? Global.dateMax : startTime.AddDays(200).ToString("yyyy-MM-dd");
         showIntervalPicker = false;
+        showCoinPicker = false;
         if(isStart) {showStartTimeDatePicker = !showStartTimeDatePicker; showEndTimeDatePicker = false; }
         else { showEndTimeDatePicker = !showEndTimeDatePicker; showStartTimeDatePicker = false; }
         StateHasChanged();
@@ -133,12 +261,28 @@
     {
         showStartTimeDatePicker = false;
         showEndTimeDatePicker = false;
+        showCoinPicker = false;
         showIntervalPicker = !showIntervalPicker;
+    }
+
+    private async void ToggleCoinPicker()
+    {
+        showStartTimeDatePicker = false;
+        showEndTimeDatePicker = false;
+        showIntervalPicker = false;
+        Global.coinList = await BinanceEarn.GetEarnCoinList();
+        showCoinPicker = !showCoinPicker;
+        StateHasChanged();
     }
 
     private void selectInterval(string selectedInterval)
     {
         Global.interval = selectedInterval;
+    }
+
+    private void selectCoin(string selectedCoin)
+    {
+        Global.coin = selectedCoin;
     }
 
     private void showWalletGraph()
@@ -155,11 +299,11 @@
         StateHasChanged();
     }
 
-    private async Task Test()
+    private async Task Coins()
     {
         ClearAll();
         StateHasChanged();
-        Global.base64Image = await BinanceEarn.ProduceGraphEarnAsset("BTC", startTime, endTime, Global.interval);
+        Global.base64Image = await BinanceEarn.ProduceGraphEarnAsset(Global.coin, startTime, endTime, Global.interval);
         StateHasChanged();
         
     }

@@ -52,12 +52,12 @@ namespace BinanceApp.Models
         {
             Global.timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            string a = await BinanceEarn.ConcatenateFlexibleAndLockedEarnAccountInfo();
+            string accountInfo = await BinanceEarn.ConcatenateFlexibleAndLockedEarnAccountInfo();
 
-            var assetPrices = BinanceEarn.ParseAssetData(a);
+            var assetPrices = BinanceEarn.ParseAssetData(accountInfo);
             Random random = new Random();
             var plt = new Plot();
-            List<Kline> klineData = await Kline.RetrieveKlineCandles(assetPrices.Keys.First().ToString(), (((DateTimeOffset)startTime).ToUnixTimeSeconds() * 1000).ToString(), (((DateTimeOffset)endTime).ToUnixTimeSeconds() * 1000).ToString(), interval);
+            List<Kline> klineData = await Kline.RetrieveKlineCandles(assetPrices.Keys.First().ToString(), (((DateTimeOffset)startTime).ToUnixTimeMilliseconds()).ToString(), (((DateTimeOffset)endTime).ToUnixTimeMilliseconds()).ToString(), interval);
             var dates = new List<double>();
             double startDouble = startTime.ToOADate();
             double delta = Utils.ParseInterval(interval);
@@ -66,7 +66,7 @@ namespace BinanceApp.Models
                 dates.Add(startDouble + i * delta);
             }
             double[] xpoints = new double[2 * klineData.Count];
-            double[] ypoints = new double[2 * klineData.Count];
+            decimal[] ypoints = new decimal[2 * klineData.Count];
             for (int i = 0; i < 2 * klineData.Count(); i++)
             {
                 if (i >= dates.Count()) { xpoints[i] = xpoints[xpoints.Count() - 1 - (i % xpoints.Count())]; }
@@ -74,7 +74,7 @@ namespace BinanceApp.Models
             }
 
 
-            double minY = -1.0;
+            decimal minY = -1.0m;
             bool isMinFirstLoop = true;
 
             foreach (var asset in assetPrices)
@@ -83,7 +83,7 @@ namespace BinanceApp.Models
                 klineData = await Kline.RetrieveKlineCandles(asset.Key.ToString(), (((DateTimeOffset)startTime).ToUnixTimeSeconds() * 1000).ToString(), (((DateTimeOffset)endTime).ToUnixTimeSeconds() * 1000).ToString(), interval);
                 for (int i = 0; i < dates.Count; i++)
                 {
-                    double stackedValue = ypoints[i] + klineData[i].Low * asset.Value.ToArray()[0];
+                    decimal stackedValue = ypoints[i] + klineData[i].Low * asset.Value.ToArray()[0];
                     if (isMinFirstLoop)
                     {
                         ypoints[2 * dates.Count() - 1 - i] = stackedValue;
@@ -94,9 +94,9 @@ namespace BinanceApp.Models
                     }
                     ypoints[i] = stackedValue;
                 }
-                if (minY == -1.0 || ypoints.Where(y => y != 0).Min() < minY)
+                if (minY == -1.0m || ypoints.Where(y => y != 0).Min() < minY)
                 {
-                    minY = ypoints.Where(y => y != 0).Min() * 0.98;
+                    minY = ypoints.Where(y => y != 0).Min() * 0.98m;
                 }
                 if (isMinFirstLoop)
                 {

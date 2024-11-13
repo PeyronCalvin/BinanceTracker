@@ -4,7 +4,9 @@ namespace BinanceApp.Models
     {
         private static long _timestamp;
         private static string _recvWindow = "50000";
-        private static string[] _intervals = ["1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"];
+        private static string[] _intervals = ["1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"]; 
+        private static List<string> _coinList = new List<string>(); 
+        private static string _coin = ""; 
         private static string _dateMin = "2000-01-01";
         private static string _dateMinOr200DaysBeforeEnd = "";
         private static string _dateMaxOr200DaysAfterStart = "";
@@ -31,6 +33,18 @@ namespace BinanceApp.Models
         {
             get => _intervals;
             set => _intervals = value;
+        }
+
+        public static List<string> coinList
+        {
+            get => _coinList;
+            set => _coinList = value;
+        }
+
+        public static string coin
+        {
+            get => _coin;
+            set => _coin = value;
         }
 
         public static string dateMin

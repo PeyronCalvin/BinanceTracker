@@ -1,17 +1,18 @@
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using ScottPlot;
+using System;
 
 namespace BinanceApp.Models
 {
     public class Kline
     {
         public DateTime OpenTime { get; set; }
-        public double Open { get; set; }
-        public double High { get; set; }
-        public double Low { get; set; }
-        public double Close { get; set; }
-        public double Volume { get; set; }
+        public decimal Open { get; set; }
+        public decimal High { get; set; }
+        public decimal Low { get; set; }
+        public decimal Close { get; set; }
+        public decimal Volume { get; set; }
         public DateTime CloseTime { get; set; }
 
         public override string ToString()
@@ -26,6 +27,7 @@ namespace BinanceApp.Models
             HttpClient httpClient = new HttpClient();
             Global.timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             Dictionary<string, string> parameters = new Dictionary<string, string> { };
+            parameters["limit"] = "1000";
             if (symbol != null && symbol != "") { parameters["symbol"] = symbol + "USDT"; }
             if (startTime != null && startTime != "") { parameters["startTime"] = startTime; }
             if (endTime != null && endTime != "") { parameters["endTime"] = endTime; }
@@ -45,11 +47,11 @@ namespace BinanceApp.Models
                 var kline = new Kline
                 {
                     OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(System.Convert.ToInt64(item[0])).UtcDateTime,
-                    Open = Convert.ToDouble(item[1], System.Globalization.CultureInfo.InvariantCulture),
-                    High = Convert.ToDouble(item[2], System.Globalization.CultureInfo.InvariantCulture),
-                    Low = Convert.ToDouble(item[3], System.Globalization.CultureInfo.InvariantCulture),
-                    Close = Convert.ToDouble(item[4], System.Globalization.CultureInfo.InvariantCulture),
-                    Volume = Convert.ToDouble(item[5], System.Globalization.CultureInfo.InvariantCulture),
+                    Open = Convert.ToDecimal(item[1], System.Globalization.CultureInfo.InvariantCulture),
+                    High = Convert.ToDecimal(item[2], System.Globalization.CultureInfo.InvariantCulture),
+                    Low = Convert.ToDecimal(item[3], System.Globalization.CultureInfo.InvariantCulture),
+                    Close = Convert.ToDecimal(item[4], System.Globalization.CultureInfo.InvariantCulture),
+                    Volume = Convert.ToDecimal(item[5], System.Globalization.CultureInfo.InvariantCulture),
                     CloseTime = DateTimeOffset.FromUnixTimeMilliseconds(System.Convert.ToInt64(item[6])).UtcDateTime
                 };
                 klineData.Add(kline);
@@ -65,10 +67,10 @@ namespace BinanceApp.Models
             var plt = new Plot();
 
             DateTime[] dates = new DateTime[klineData.Count];
-            double[] opens = new double[klineData.Count];
-            double[] highs = new double[klineData.Count];
-            double[] lows = new double[klineData.Count];
-            double[] closes = new double[klineData.Count];
+            decimal[] opens = new decimal[klineData.Count];
+            decimal[] highs = new decimal[klineData.Count];
+            decimal[] lows = new decimal[klineData.Count];
+            decimal[] closes = new decimal[klineData.Count];
 
             for (int i = 0; i < klineData.Count; i++)
             {
@@ -81,7 +83,7 @@ namespace BinanceApp.Models
             List<OHLC> ohlcData = new List<OHLC>();
             for (int i = 0; i < dates.Length; i++)
             {
-                var ohlc = new OHLC(opens[i], closes[i], lows[i], highs[i], dates[i], TimeSpan.FromDays(0.01));
+                var ohlc = new OHLC(Decimal.ToDouble(opens[i]), Decimal.ToDouble(closes[i]), Decimal.ToDouble(lows[i]), Decimal.ToDouble(highs[i]), dates[i], TimeSpan.FromDays(0.01));
                 ohlcData.Add(ohlc);
             }
             var candlestickPlot = plt.Add.Candlestick(ohlcData);
